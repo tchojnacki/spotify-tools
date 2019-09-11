@@ -1,6 +1,5 @@
 use std::error::Error;
-use std::io::{BufRead, Write};
-use std::io::BufReader;
+use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use url::Url;
 
