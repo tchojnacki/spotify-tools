@@ -1,10 +1,18 @@
-use std::net::TcpListener;
-use std::io::{Read, Write};
-use url::Url;
 use std::error::Error;
+use std::io::{BufRead, Write};
+use std::io::BufReader;
+use std::net::TcpListener;
+use url::Url;
 
 const CLIENT_ID: &str = "bda57df0ca3244ea96cc8f16dfe04ab7";
-const SCOPES: &[&str] = &["playlist-read-private", "playlist-read-collaborative", "playlist-modify-private", "playlist-modify-public", "user-library-read", "user-library-modify"];
+const SCOPES: &[&str] = &[
+    "playlist-read-private",
+    "playlist-read-collaborative",
+    "playlist-modify-private",
+    "playlist-modify-public",
+    "user-library-read",
+    "user-library-modify",
+];
 const LOCALHOST: &str = "http://localhost";
 const PORT: u32 = 8000;
 const CALLBACK: &str = "/callback";
@@ -12,13 +20,13 @@ const REDIRECT: &str = "/redirect";
 
 enum AuthStage {
     ShouldCallback,
-    ShouldRedirect
+    ShouldRedirect,
 }
 
 enum Response {
     Callback,
     Redirect,
-    BadRequest
+    BadRequest,
 }
 
 impl Response {
@@ -28,8 +36,9 @@ impl Response {
             "margin: 2.5em;",
             "font-family: sans-serif;",
             "text-align: center;",
-            "}"
-        ].join("\r\n");
+            "}",
+        ]
+        .join("\r\n");
 
         let content = [
             "<!DOCTYPE html>",
@@ -39,8 +48,9 @@ impl Response {
             &format!("<style>{}</style>", style),
             "</head>",
             &format!("<body>{}</body>", body),
-            "</html>"
-        ].join("\r\n");
+            "</html>",
+        ]
+        .join("\r\n");
 
         [
             &format!("HTTP/1.1 {}", status),
@@ -48,8 +58,10 @@ impl Response {
             "Content-Type: text/html; charset=utf-8",
             &format!("Content-Length: {}", content.as_bytes().len()),
             "",
-            &content
-        ].join("\r\n").into_bytes()
+            &content,
+        ]
+        .join("\r\n")
+        .into_bytes()
     }
 
     fn content(&self) -> Vec<u8> {
@@ -66,7 +78,7 @@ pub fn authorize() -> Result<String, Box<dyn Error>> {
 
     match open::that(&auth_url) {
         Ok(_) => println!("Please check the tab opened in your browser."),
-        Err(_) => println!("Open the following link in your browser:\r\n{}", &auth_url)
+        Err(_) => println!("Open the following link in your browser:\r\n{}", &auth_url),
     }
 
     let listener = TcpListener::bind(format!("127.0.0.1:{}", PORT))?;
@@ -76,31 +88,38 @@ pub fn authorize() -> Result<String, Box<dyn Error>> {
     Ok(loop {
         let (mut socket, _addr) = listener.accept()?;
 
-        let mut buf = vec![0u8; 4096];
-        socket.read(&mut buf)?;
+        let req = {
+            let mut req = String::new();
+            BufReader::new(&socket).read_line(&mut req)?;
+            req
+        };
 
-        let req = String::from_utf8(buf)?;
-        let req_url = Url::parse(&format!("{}:{}{}", LOCALHOST, PORT, req.split_whitespace().nth(1).unwrap_or("")))?;
+        let req_url = Url::parse(&format!(
+            "{}:{}{}",
+            LOCALHOST,
+            PORT,
+            req.split_whitespace().nth(1).unwrap_or("")
+        ))?;
 
         match (&stage, req_url.path()) {
             (AuthStage::ShouldCallback, CALLBACK) => {
                 socket.write_all(&Response::Callback.content())?;
                 stage = AuthStage::ShouldRedirect;
-            },
+            }
             (AuthStage::ShouldRedirect, REDIRECT) => {
                 match req_url.query_pairs().find(|(k, _v)| k == "access_token") {
                     Some(token) => {
                         println!("Authorization successful.");
                         socket.write_all(&Response::Redirect.content())?;
                         break String::from(token.1);
-                    },
+                    }
                     None => {
                         println!("Token not found. Please try again.");
                         socket.write_all(&Response::BadRequest.content())?;
                         stage = AuthStage::ShouldCallback;
                     }
                 };
-            },
+            }
             _ => {
                 socket.write_all(&Response::BadRequest.content())?;
             }
