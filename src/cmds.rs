@@ -1,15 +1,13 @@
-use command::Command;
-use console::style;
-use dialoguer::Select;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
     Client,
 };
 use std::error::Error;
 
-mod command;
+mod duplicates;
 mod spotify_api;
 mod tracks_info;
+mod util;
 
 pub struct CmdHandler {
     client: Client,
@@ -26,33 +24,5 @@ impl CmdHandler {
             .default_headers(headers)
             .build()?;
         Ok(CmdHandler { client })
-    }
-
-    pub fn select_cmd(&self) -> bool {
-        let commands = Command::commands();
-        let select = {
-            let mut select = Select::new();
-            select.with_prompt(&style("Select an action").cyan().to_string());
-            select.items(&commands);
-            select.default(0);
-            select
-        };
-
-        println!();
-
-        let answer = commands
-            .get(select.interact().unwrap_or(commands.len() - 1))
-            .unwrap_or(&Command::Exit);
-
-        match answer {
-            Command::TracksInfo => self.tracks_info().unwrap(),
-            _ => (),
-        };
-
-        if let Command::Exit = answer {
-            true
-        } else {
-            false
-        }
     }
 }

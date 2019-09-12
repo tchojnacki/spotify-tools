@@ -17,14 +17,12 @@ pub struct SavedTrack {
 pub struct Track {
     pub artists: Vec<Artist>,
     pub album: SimplifiedAlbum,
-    name: String,
-    uri: String,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Artist {
     pub name: String,
-    id: String,
+    pub id: String,
 }
 
 #[derive(Deserialize, Debug)]
