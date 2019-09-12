@@ -1,4 +1,5 @@
 use command::Command;
+use console::style;
 use dialoguer::Select;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
@@ -31,11 +32,14 @@ impl CmdHandler {
         let commands = Command::commands();
         let select = {
             let mut select = Select::new();
-            select.with_prompt("Select an action");
+            select.with_prompt(&style("Select an action").cyan().to_string());
             select.items(&commands);
             select.default(0);
             select
         };
+
+        println!();
+
         let answer = commands
             .get(select.interact().unwrap_or(commands.len() - 1))
             .unwrap_or(&Command::Exit);
