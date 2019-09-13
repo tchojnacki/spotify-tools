@@ -3,7 +3,8 @@ use super::spotify_api::{
 };
 use super::CmdHandler;
 use console::style;
-use dialoguer::Select;
+use dialoguer::{Confirmation, Select};
+use serde_json::json;
 use std::collections::HashMap;
 use std::error::Error;
 
@@ -135,6 +136,47 @@ impl CmdHandler {
             );
             for dup in &duplicates {
                 println!("{}", dup.name);
+            }
+
+            let confirm = {
+                let mut confirm = Confirmation::new();
+                confirm.with_text(&style("Do you want to delete them?").cyan().to_string());
+                confirm.default(false);
+                confirm
+            };
+
+            if confirm.interact()? {
+                match &target {
+                    Target::SavedTracks => {
+                        let chunks = duplicates.chunks(50);
+                        for chunk in chunks {
+                            let data = chunk.iter().map(|c| &c.id).collect::<Vec<_>>();
+                            self.client
+                                .delete(SAVED_TRACKS_ENDPOINT)
+                                .json(&data)
+                                .send()?;
+                        }
+                        println!("Duplicates removed successfully.");
+                    }
+                    Target::Playlist(p) => {
+                        let chunks = duplicates.chunks(100);
+                        for chunk in chunks {
+                            let data = json!({
+                                "tracks": chunk.iter().map(|c| {
+                                        json!({
+                                            "uri": &c.uri,
+                                            "positions": [&c.index]
+                                        })
+                                    }).collect::<Vec<_>>(),
+                                "snapshot_id": &p.snapshot_id
+                            });
+                            self.client.delete(&p.tracks.href).json(&data).send()?;
+                        }
+                        println!("Duplicates removed successfully.");
+                    }
+                }
+            } else {
+                println!("No duplicates removed.");
             }
         }
 
