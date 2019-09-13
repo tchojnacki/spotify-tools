@@ -1,10 +1,8 @@
-use super::spotify_api::SavedTrack;
+use super::spotify_api::{SavedTrack, SAVED_TRACKS_ENDPOINT};
 use super::CmdHandler;
 use console::style;
 use std::collections::HashMap;
 use std::error::Error;
-
-const TRACKS_ENDPOINT: &str = "https://api.spotify.com/v1/me/tracks?limit=50";
 
 fn first_10(len: usize) -> usize {
     if 10 <= len {
@@ -22,7 +20,7 @@ struct NamedCounter {
 impl CmdHandler {
     pub fn tracks_info(&self) -> Result<(), Box<dyn Error>> {
         println!("Loading your library information...");
-        let saved_tracks = self.paged_request::<SavedTrack>(TRACKS_ENDPOINT)?;
+        let saved_tracks = self.paged_request::<SavedTrack>(SAVED_TRACKS_ENDPOINT)?;
         println!("Library loaded.");
 
         let mut artist_counter = HashMap::new();
@@ -33,19 +31,25 @@ impl CmdHandler {
                 artist_counter
                     .entry(artist.id.to_string())
                     .and_modify(|c: &mut NamedCounter| c.counter += 1)
-                    .or_insert(NamedCounter { name: artist.name.to_string(), counter: 1 });
+                    .or_insert(NamedCounter {
+                        name: artist.name.to_string(),
+                        counter: 1,
+                    });
             }
 
             album_counter
                 .entry(track.track.album.id.to_string())
                 .and_modify(|c: &mut NamedCounter| c.counter += 1)
-                .or_insert(NamedCounter { name: track.track.album.name.to_string(), counter: 1 });
+                .or_insert(NamedCounter {
+                    name: track.track.album.name.to_string(),
+                    counter: 1,
+                });
         }
 
-        let mut top_artists: Vec<(String, NamedCounter)> = artist_counter.into_iter().collect();
+        let mut top_artists = artist_counter.into_iter().collect::<Vec<_>>();
         top_artists.sort_by(|(_k1, v1), (_k2, v2)| v2.counter.cmp(&v1.counter));
 
-        let mut top_albums: Vec<(String, NamedCounter)> = album_counter.into_iter().collect();
+        let mut top_albums = album_counter.into_iter().collect::<Vec<_>>();
         top_albums.sort_by(|(_k1, v1), (_k2, v2)| v2.counter.cmp(&v1.counter));
 
         println!();

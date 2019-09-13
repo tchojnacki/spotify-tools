@@ -1,5 +1,8 @@
 use serde::Deserialize;
 
+pub const SAVED_TRACKS_ENDPOINT: &str = "https://api.spotify.com/v1/me/tracks?limit=50";
+pub const PLAYLISTS_ENDPOINT: &str = "https://api.spotify.com/v1/me/playlists?limit=50";
+
 #[derive(Deserialize, Debug)]
 pub struct Paging<T> {
     pub items: Vec<T>,
@@ -15,8 +18,11 @@ pub struct SavedTrack {
 
 #[derive(Deserialize, Debug)]
 pub struct Track {
+    pub name: String,
     pub artists: Vec<Artist>,
     pub album: SimplifiedAlbum,
+    pub id: String,
+    pub uri: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -27,6 +33,24 @@ pub struct Artist {
 
 #[derive(Deserialize, Debug)]
 pub struct SimplifiedAlbum {
+    pub album_type: String,
     pub name: String,
     pub id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SimplifiedPlaylist {
+    pub name: String,
+    pub tracks: Tracks,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PlaylistTrack {
+    pub track: Track,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Tracks {
+    pub href: String,
+    pub total: u64,
 }

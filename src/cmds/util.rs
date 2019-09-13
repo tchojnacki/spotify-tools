@@ -43,7 +43,7 @@ impl CmdHandler {
 
         let answer = commands
             .get(select.interact().unwrap_or(commands.len() - 1))
-            .unwrap_or(&Command::Exit);
+            .unwrap();
 
         match answer {
             Command::TracksInfo => self.tracks_info().unwrap(),
