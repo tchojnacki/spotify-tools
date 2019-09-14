@@ -1,5 +1,6 @@
 use super::spotify_api::{
-    PlaylistTrack, SavedTrack, SimplifiedPlaylist, Track, PLAYLISTS_ENDPOINT, SAVED_TRACKS_ENDPOINT,
+    endpoints::{ALL_PLAYLISTS, SAVED_TRACKS, SAVED_TRACKS_REMOVAL},
+    models::{PlaylistTrack, SavedTrack, SimplifiedPlaylist, Track},
 };
 use super::CmdHandler;
 use console::style;
@@ -99,7 +100,7 @@ fn find_duplicates<'a>(tracks: &'a [Track]) -> Vec<Duplicate<'a>> {
 impl CmdHandler {
     pub fn duplicates(&self) -> Result<(), Box<dyn Error>> {
         println!("Loading your playlists...");
-        let playlists = self.paged_request::<SimplifiedPlaylist>(PLAYLISTS_ENDPOINT)?;
+        let playlists = self.paged_request::<SimplifiedPlaylist>(ALL_PLAYLISTS)?;
         println!("Playlists loaded.");
 
         let choices = {
@@ -121,7 +122,7 @@ impl CmdHandler {
         println!("Looking for duplicates...");
         let tracks = match &target {
             Target::SavedTracks => {
-                let tracks = self.paged_request::<SavedTrack>(SAVED_TRACKS_ENDPOINT)?;
+                let tracks = self.paged_request::<SavedTrack>(SAVED_TRACKS)?;
                 tracks.into_iter().map(|t| t.track).collect::<Vec<_>>()
             }
             Target::Playlist(p) => {
@@ -157,7 +158,7 @@ impl CmdHandler {
                         for chunk in chunks {
                             let data = chunk.iter().map(|c| &c.id).collect::<Vec<_>>();
                             self.client
-                                .delete(SAVED_TRACKS_ENDPOINT)
+                                .delete(SAVED_TRACKS_REMOVAL)
                                 .json(&data)
                                 .send()?;
                         }
@@ -166,16 +167,18 @@ impl CmdHandler {
                     Target::Playlist(p) => {
                         let chunks = duplicates.chunks(100);
                         for chunk in chunks {
-                            let data = json!({
-                                "tracks": chunk.iter().map(|c| {
-                                        json!({
-                                            "uri": &c.uri,
-                                            "positions": [&c.index]
-                                        })
-                                    }).collect::<Vec<_>>(),
-                                "snapshot_id": &p.snapshot_id
-                            });
-                            self.client.delete(&p.tracks.href).json(&data).send()?;
+                            self.client
+                                .delete(&p.tracks.href)
+                                .json(&json!({
+                                    "tracks": chunk.iter().map(|c| {
+                                            json!({
+                                                "uri": &c.uri,
+                                                "positions": [&c.index]
+                                            })
+                                        }).collect::<Vec<_>>(),
+                                    "snapshot_id": &p.snapshot_id
+                                }))
+                                .send()?;
                         }
                         println!("Duplicates removed successfully.");
                     }

@@ -4,6 +4,7 @@ use reqwest::{
 };
 use std::error::Error;
 
+mod decades;
 mod duplicates;
 mod spotify_api;
 mod tracks_info;

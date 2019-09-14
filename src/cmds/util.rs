@@ -1,4 +1,4 @@
-use super::spotify_api::Paging;
+use super::spotify_api::models::Paging;
 use super::CmdHandler;
 use console::style;
 use dialoguer::Select;
@@ -9,12 +9,18 @@ use std::error::Error;
 pub enum Command {
     TracksInfo,
     Duplicates,
+    Decades,
     Exit,
 }
 
 impl Command {
     pub fn commands() -> Vec<Command> {
-        vec![Command::TracksInfo, Command::Duplicates, Command::Exit]
+        vec![
+            Command::TracksInfo,
+            Command::Duplicates,
+            Command::Decades,
+            Command::Exit,
+        ]
     }
 }
 
@@ -23,6 +29,7 @@ impl ToString for Command {
         String::from(match &self {
             Command::TracksInfo => "Show information about liked songs from your library",
             Command::Duplicates => "Remove duplicates from liked songs or from a playlist",
+            Command::Decades => "Categorize your liked songs based on their release decade",
             Command::Exit => "Exit",
         })
     }
@@ -48,6 +55,7 @@ impl CmdHandler {
         match answer {
             Command::TracksInfo => self.tracks_info().unwrap(),
             Command::Duplicates => self.duplicates().unwrap(),
+            Command::Decades => self.decades().unwrap(),
             _ => (),
         };
 
@@ -67,7 +75,11 @@ impl CmdHandler {
         let mut progress: Option<ProgressBar> = None;
 
         while next_url.is_some() {
-            let resp: Paging<T> = self.client.get(&next_url.unwrap()).send()?.json()?;
+            let resp = self
+                .client
+                .get(&next_url.unwrap())
+                .send()?
+                .json::<Paging<T>>()?;
 
             next_url = resp.next;
             data.extend(resp.items);

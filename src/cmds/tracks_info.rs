@@ -1,6 +1,7 @@
-use super::spotify_api::{SavedTrack, SAVED_TRACKS_ENDPOINT};
+use super::spotify_api::{endpoints::SAVED_TRACKS, models::SavedTrack};
 use super::CmdHandler;
 use console::style;
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::error::Error;
 
@@ -21,7 +22,7 @@ struct NamedCounter<'a> {
 impl CmdHandler {
     pub fn tracks_info(&self) -> Result<(), Box<dyn Error>> {
         println!("Loading your library information...");
-        let saved_tracks = self.paged_request::<SavedTrack>(SAVED_TRACKS_ENDPOINT)?;
+        let saved_tracks = self.paged_request::<SavedTrack>(SAVED_TRACKS)?;
         println!("Library loaded.");
 
         let mut artist_counter = HashMap::new();
@@ -47,11 +48,15 @@ impl CmdHandler {
                 });
         }
 
-        let mut top_artists = artist_counter.into_iter().collect::<Vec<_>>();
-        top_artists.sort_by(|(_k1, v1), (_k2, v2)| v2.counter.cmp(&v1.counter)); // Sort by count
+        let top_artists = artist_counter
+            .into_iter()
+            .sorted_by(|(_, v1), (_, v2)| v2.counter.cmp(&v1.counter))
+            .collect::<Vec<_>>();
 
-        let mut top_albums = album_counter.into_iter().collect::<Vec<_>>();
-        top_albums.sort_by(|(_k1, v1), (_k2, v2)| v2.counter.cmp(&v1.counter)); // Sort by count
+        let top_albums = album_counter
+            .into_iter()
+            .sorted_by(|(_, v1), (_, v2)| v2.counter.cmp(&v1.counter))
+            .collect::<Vec<_>>();
 
         println!(
             "{}",
