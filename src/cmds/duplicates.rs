@@ -24,29 +24,29 @@ impl ToString for Target {
 }
 
 #[derive(Debug)]
-struct Duplicate {
-    name: String,
-    album: String,
-    artist: String,
-    id: String,
-    uri: String,
+struct Duplicate<'a> {
+    name: &'a str,
+    album: &'a str,
+    artist: &'a str,
+    id: &'a str,
+    uri: &'a str,
     index: usize,
 }
 
-impl Duplicate {
+impl<'a> Duplicate<'a> {
     fn from_indexed_track(indexed_track: (usize, &Track)) -> Duplicate {
         Duplicate {
-            name: indexed_track.1.name.to_string(),
-            album: indexed_track.1.album.name.to_string(),
-            artist: indexed_track.1.artists[0].name.to_string(),
-            id: indexed_track.1.id.to_string(),
-            uri: indexed_track.1.uri.to_string(),
+            name: &indexed_track.1.name,
+            album: &indexed_track.1.album.name,
+            artist: &indexed_track.1.artists[0].name,
+            id: &indexed_track.1.id,
+            uri: &indexed_track.1.uri,
             index: indexed_track.0,
         }
     }
 }
 
-fn find_duplicates(tracks: Vec<Track>) -> Vec<Duplicate> {
+fn find_duplicates<'a>(tracks: &'a [Track]) -> Vec<Duplicate<'a>> {
     let mut dup_map = HashMap::new();
     let mut duplicates = Vec::new();
     for indexed_track in tracks.iter().enumerate() {
@@ -130,7 +130,7 @@ impl CmdHandler {
             }
         };
 
-        let duplicates = find_duplicates(tracks);
+        let duplicates = find_duplicates(&tracks);
 
         if duplicates.is_empty() {
             println!("No duplicates found.");

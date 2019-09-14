@@ -13,8 +13,8 @@ fn first_10(len: usize) -> usize {
     }
 }
 
-struct NamedCounter {
-    name: String,
+struct NamedCounter<'a> {
+    name: &'a str,
     counter: u32,
 }
 
@@ -30,19 +30,19 @@ impl CmdHandler {
         for track in &saved_tracks {
             for artist in &track.track.artists {
                 artist_counter
-                    .entry(artist.id.to_string())
+                    .entry(&artist.id)
                     .and_modify(|c: &mut NamedCounter| c.counter += 1)
                     .or_insert(NamedCounter {
-                        name: artist.name.to_string(),
+                        name: &artist.name,
                         counter: 1,
                     });
             }
 
             album_counter
-                .entry(track.track.album.id.to_string())
+                .entry(&track.track.album.id)
                 .and_modify(|c: &mut NamedCounter| c.counter += 1)
                 .or_insert(NamedCounter {
-                    name: track.track.album.name.to_string(),
+                    name: &track.track.album.name,
                     counter: 1,
                 });
         }
