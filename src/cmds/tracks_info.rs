@@ -4,6 +4,7 @@ use console::style;
 use std::collections::HashMap;
 use std::error::Error;
 
+/// Cap a number to a ten maximum
 fn first_10(len: usize) -> usize {
     if 10 <= len {
         10
@@ -47,12 +48,11 @@ impl CmdHandler {
         }
 
         let mut top_artists = artist_counter.into_iter().collect::<Vec<_>>();
-        top_artists.sort_by(|(_k1, v1), (_k2, v2)| v2.counter.cmp(&v1.counter));
+        top_artists.sort_by(|(_k1, v1), (_k2, v2)| v2.counter.cmp(&v1.counter)); // Sort by count
 
         let mut top_albums = album_counter.into_iter().collect::<Vec<_>>();
-        top_albums.sort_by(|(_k1, v1), (_k2, v2)| v2.counter.cmp(&v1.counter));
+        top_albums.sort_by(|(_k1, v1), (_k2, v2)| v2.counter.cmp(&v1.counter)); // Sort by count
 
-        println!();
         println!(
             "{}",
             style(format!(
@@ -64,13 +64,11 @@ impl CmdHandler {
             .cyan()
         );
 
-        println!();
         println!("{}", style("Most liked artists:").cyan());
         for artist in &top_artists[..first_10(top_artists.len())] {
             println!("{} - {} songs", artist.1.name, artist.1.counter);
         }
 
-        println!();
         println!("{}", style("Most liked albums:").cyan());
         for album in &top_albums[..first_10(top_albums.len())] {
             println!("{} - {} songs", album.1.name, album.1.counter);

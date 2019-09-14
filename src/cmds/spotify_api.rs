@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
-pub const SAVED_TRACKS_ENDPOINT: &str = "https://api.spotify.com/v1/me/tracks";
-pub const PLAYLISTS_ENDPOINT: &str = "https://api.spotify.com/v1/me/playlists";
+pub const SAVED_TRACKS_ENDPOINT: &str = "https://api.spotify.com/v1/me/tracks?limit=50";
+pub const PLAYLISTS_ENDPOINT: &str = "https://api.spotify.com/v1/me/playlists?limit=50";
 
 #[derive(Deserialize, Debug)]
 pub struct Paging<T> {

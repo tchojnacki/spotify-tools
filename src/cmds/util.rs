@@ -21,8 +21,8 @@ impl Command {
 impl ToString for Command {
     fn to_string(&self) -> String {
         String::from(match &self {
-            Command::TracksInfo => "Show information about tracks saved to your library",
-            Command::Duplicates => "Remove duplicates from saved tracks or from a playlist",
+            Command::TracksInfo => "Show information about liked songs from your library",
+            Command::Duplicates => "Remove duplicates from liked songs or from a playlist",
             Command::Exit => "Exit",
         })
     }

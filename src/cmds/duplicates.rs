@@ -8,6 +8,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::error::Error;
 
+/// Target for duplicate removal, either the saved tracks or a playlist
 enum Target {
     SavedTracks,
     Playlist(SimplifiedPlaylist),
@@ -16,7 +17,7 @@ enum Target {
 impl ToString for Target {
     fn to_string(&self) -> String {
         match &self {
-            Target::SavedTracks => String::from("Songs saved in your library"),
+            Target::SavedTracks => String::from("Liked songs from your library"),
             Target::Playlist(p) => format!("{} - {} tracks", p.name, p.tracks.total),
         }
     }
@@ -25,6 +26,8 @@ impl ToString for Target {
 #[derive(Debug)]
 struct Duplicate {
     name: String,
+    album: String,
+    artist: String,
     id: String,
     uri: String,
     index: usize,
@@ -34,6 +37,8 @@ impl Duplicate {
     fn from_indexed_track(indexed_track: (usize, &Track)) -> Duplicate {
         Duplicate {
             name: indexed_track.1.name.to_string(),
+            album: indexed_track.1.album.name.to_string(),
+            artist: indexed_track.1.artists[0].name.to_string(),
             id: indexed_track.1.id.to_string(),
             uri: indexed_track.1.uri.to_string(),
             index: indexed_track.0,
@@ -46,43 +51,45 @@ fn find_duplicates(tracks: Vec<Track>) -> Vec<Duplicate> {
     let mut duplicates = Vec::new();
     for indexed_track in tracks.iter().enumerate() {
         dup_map
-            .entry(&indexed_track.1.artists[0].name)
-            .and_modify(|album_entry: &mut HashMap<&str, (usize, &Track)>| {
+            .entry(&indexed_track.1.artists[0].name) // Entry with key based on track artist
+            .and_modify(|album_entry: &mut HashMap<&String, (usize, &Track)>| {
                 album_entry
-                    .entry(&indexed_track.1.name)
+                    .entry(&indexed_track.1.name) // Entry with key based on track name
                     .and_modify(|previous_track| {
+                        // Two track with the same name from the same artist found
                         // Prefer a track from an album instead of a single
                         match (
                             &previous_track.1.album.album_type[..],
                             &indexed_track.1.album.album_type[..],
                         ) {
-                            (_, "album") => {
-                                // Swap
+                            ("single", "album") => {
+                                // Previous track is a single, new track is from an album, swap
                                 duplicates.push(Duplicate::from_indexed_track(*previous_track));
                                 *previous_track = indexed_track;
                             }
-                            ("album", _) => {
-                                // Don't swap
+                            ("album", "single") => {
+                                // Previous track is from an album, mew track is a single, don't swap
                                 duplicates.push(Duplicate::from_indexed_track(indexed_track));
                             }
                             _ => {
-                                // If both are from an album (are not a single) prefer lower album id
+                                // If we can't select based on album_type prefer lower album id
                                 if indexed_track.1.album.id < previous_track.1.album.id {
-                                    // Swap
+                                    // New track has lower album id, swap
                                     duplicates.push(Duplicate::from_indexed_track(*previous_track));
                                     *previous_track = indexed_track;
                                 } else {
-                                    // Don't swap
+                                    // Previous track has lower album id, don't swap
                                     duplicates.push(Duplicate::from_indexed_track(indexed_track));
                                 }
                             }
                         }
                     })
-                    .or_insert(indexed_track);
+                    .or_insert(indexed_track); // First track with given name for that artist
             })
             .or_insert_with(|| {
+                // New entry for an artist, with a value containing a HashMap mapping a given track name to a unique track
                 let mut song_map = HashMap::new();
-                song_map.insert(&indexed_track.1.name[..], indexed_track);
+                song_map.insert(&indexed_track.1.name, indexed_track);
                 song_map
             });
     }
@@ -109,7 +116,6 @@ impl CmdHandler {
             select
         };
 
-        println!();
         let target = choices.get(select.interact().unwrap_or(0)).unwrap();
 
         println!("Looking for duplicates...");
@@ -129,13 +135,12 @@ impl CmdHandler {
         if duplicates.is_empty() {
             println!("No duplicates found.");
         } else {
-            println!();
             println!(
                 "{}",
                 style(format!("Found {} duplicates:", duplicates.len())).cyan()
             );
             for dup in &duplicates {
-                println!("{}", dup.name);
+                println!("{} - {} ({})", dup.artist, dup.name, dup.album);
             }
 
             let confirm = {

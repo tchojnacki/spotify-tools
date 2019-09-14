@@ -16,6 +16,7 @@ pub struct CmdHandler {
 impl CmdHandler {
     pub fn new(token: &str) -> Result<CmdHandler, Box<dyn Error>> {
         let mut headers = HeaderMap::new();
+        // Set auth header
         headers.insert(
             AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {}", token))?,
