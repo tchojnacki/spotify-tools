@@ -43,6 +43,7 @@ impl CmdHandler {
                 .client
                 .get(&format!("{}?ids={}", ARTISTS_INFO, chunk.iter().join(",")))
                 .send()?
+                .error_for_status()?
                 .json::<ArtistsResponse>()?;
             progress.inc(50);
             for artist in &data.artists {

@@ -2,9 +2,9 @@ use super::spotify_api::{endpoints::SAVED_TRACKS, models::SavedTrack};
 use super::CmdHandler;
 use console::style;
 use itertools::Itertools;
+use std::cmp::min;
 use std::collections::HashMap;
 use std::error::Error;
-use std::cmp::min;
 
 struct NamedCounter<'a> {
     name: &'a str,

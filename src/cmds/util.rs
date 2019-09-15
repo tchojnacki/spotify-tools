@@ -8,8 +8,8 @@ use dialoguer::{Confirmation, Input, Select};
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::de::DeserializeOwned;
 use serde_json::json;
-use std::error::Error;
 use std::cmp::min;
+use std::error::Error;
 
 pub enum Command {
     TracksInfo,
@@ -44,7 +44,7 @@ impl ToString for Command {
 }
 
 impl CmdHandler {
-    pub fn select_cmd(&self) -> bool {
+    pub fn select_cmd(&self) -> Result<bool, Box<dyn Error>> {
         let commands = Command::commands();
         let select = {
             let mut select = Select::new();
@@ -61,18 +61,18 @@ impl CmdHandler {
             .unwrap();
 
         match answer {
-            Command::TracksInfo => self.tracks_info().unwrap(),
-            Command::Duplicates => self.duplicates().unwrap(),
-            Command::Decades => self.decades().unwrap(),
-            Command::Genres => self.genres().unwrap(),
+            Command::TracksInfo => self.tracks_info()?,
+            Command::Duplicates => self.duplicates()?,
+            Command::Decades => self.decades()?,
+            Command::Genres => self.genres()?,
             _ => (),
         };
 
-        if let Command::Exit = answer {
+        Ok(if let Command::Exit = answer {
             true
         } else {
             false
-        }
+        })
     }
 
     pub fn paged_request<T: DeserializeOwned>(
@@ -88,6 +88,7 @@ impl CmdHandler {
                 .client
                 .get(&next_url.unwrap())
                 .send()?
+                .error_for_status()?
                 .json::<Paging<T>>()?;
 
             next_url = resp.next;
@@ -122,7 +123,7 @@ impl CmdHandler {
             )
             .default(String::from(default_name))
             .interact()?;
-        
+
         let name = &name[..min(name.len(), 100)];
 
         println!(
@@ -136,12 +137,19 @@ impl CmdHandler {
             .interact()?
         {
             println!("Creating the playlist...");
-            let user_id = self.client.get(GET_USER).send()?.json::<User>()?.id;
+            let user_id = self
+                .client
+                .get(GET_USER)
+                .send()?
+                .error_for_status()?
+                .json::<User>()?
+                .id;
             let playlist = self
                 .client
                 .post(&PLAYLIST_CREATION.replace("{user_id}", &user_id))
                 .json(&json!({ "name": &name }))
                 .send()?
+                .error_for_status()?
                 .json::<SimplifiedPlaylist>()?;
 
             println!("Adding songs to the playlist...");
@@ -150,7 +158,8 @@ impl CmdHandler {
                 self.client
                     .post(&playlist.tracks.href)
                     .json(&json!({ "uris": &chunk }))
-                    .send()?;
+                    .send()?
+                    .error_for_status()?;
             }
             println!("Playlist created.");
 

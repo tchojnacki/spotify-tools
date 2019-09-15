@@ -160,7 +160,8 @@ impl CmdHandler {
                             self.client
                                 .delete(SAVED_TRACKS_REMOVAL)
                                 .json(&data)
-                                .send()?;
+                                .send()?
+                                .error_for_status()?;
                         }
                         println!("Duplicates removed successfully.");
                     }
@@ -178,7 +179,8 @@ impl CmdHandler {
                                         }).collect::<Vec<_>>(),
                                     "snapshot_id": &p.snapshot_id
                                 }))
-                                .send()?;
+                                .send()?
+                                .error_for_status()?;;
                         }
                         println!("Duplicates removed successfully.");
                     }
