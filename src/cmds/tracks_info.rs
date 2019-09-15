@@ -4,15 +4,7 @@ use console::style;
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::error::Error;
-
-/// Cap a number to a ten maximum
-fn first_10(len: usize) -> usize {
-    if 10 <= len {
-        10
-    } else {
-        len
-    }
-}
+use std::cmp::min;
 
 struct NamedCounter<'a> {
     name: &'a str,
@@ -70,12 +62,12 @@ impl CmdHandler {
         );
 
         println!("{}", style("Most liked artists:").cyan());
-        for artist in &top_artists[..first_10(top_artists.len())] {
+        for artist in &top_artists[..min(top_artists.len(), 10)] {
             println!("{} - {} songs", artist.1.name, artist.1.counter);
         }
 
         println!("{}", style("Most liked albums:").cyan());
-        for album in &top_albums[..first_10(top_albums.len())] {
+        for album in &top_albums[..min(top_albums.len(), 10)] {
             println!("{} - {} songs", album.1.name, album.1.counter);
         }
 

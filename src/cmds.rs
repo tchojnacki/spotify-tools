@@ -6,6 +6,7 @@ use std::error::Error;
 
 mod decades;
 mod duplicates;
+mod genres;
 mod spotify_api;
 mod tracks_info;
 mod util;
