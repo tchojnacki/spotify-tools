@@ -1,6 +1,6 @@
 [package]
 name = "spotify-tools"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Tomasz Chojnacki <tomekch6@gmail.com>"]
 edition = "2018"
 

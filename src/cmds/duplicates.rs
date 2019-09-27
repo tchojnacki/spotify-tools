@@ -180,7 +180,7 @@ impl CmdHandler {
                                     "snapshot_id": &p.snapshot_id
                                 }))
                                 .send()?
-                                .error_for_status()?;;
+                                .error_for_status()?;
                         }
                         println!("Duplicates removed successfully.");
                     }
