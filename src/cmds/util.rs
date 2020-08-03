@@ -1,6 +1,6 @@
 use super::spotify_api::{
     endpoints::{ALL_PLAYLISTS, GET_USER, PLAYLIST_CREATION},
-    models::{Paging, SimplifiedPlaylist, User},
+    models::{Paging, PlaylistTrack, SimplifiedPlaylist, User},
 };
 use super::CmdHandler;
 use console::style;
@@ -110,6 +110,20 @@ impl CmdHandler {
         Ok(data)
     }
 
+    fn open_playlist(&self, uri: &str) -> Result<(), Box<dyn Error>> {
+        if Confirmation::new()
+            .with_text(&style("Do you want to view it now?").cyan().to_string())
+            .default(false)
+            .interact()?
+        {
+            match open::that(uri) {
+                Ok(_) => println!("Playlist opened in Spotify."),
+                Err(_) => println!("See the playlist at: {}", uri),
+            }
+        }
+        Ok(())
+    }
+
     pub fn create_playlist(
         &self,
         tracks: Vec<&String>,
@@ -121,7 +135,7 @@ impl CmdHandler {
                     .cyan()
                     .to_string(),
             )
-            .default(String::from(default_name))
+            .default(String::from(&default_name[..min(default_name.len(), 100)]))
             .interact()?;
 
         let name = &name[..min(name.len(), 100)];
@@ -150,6 +164,55 @@ impl CmdHandler {
                 .interact()?
             {
                 println!("Updating the playlist...");
+                println!("Fetching current playlist information.");
+                let current_tracks = self.paged_request::<PlaylistTrack>(&current.tracks.href)?;
+                println!("Playlist information downloaded.");
+                let current_uris = current_tracks
+                    .iter()
+                    .map(|t| &t.track.uri)
+                    .collect::<Vec<_>>();
+                let new_uris = tracks;
+
+                let uris_to_delete = current_uris
+                    .iter()
+                    .filter(|&&c_uri| !new_uris.iter().any(|&n_uri| c_uri == n_uri))
+                    .collect::<Vec<_>>();
+
+                let uris_to_add = new_uris
+                    .iter()
+                    .filter(|&&n_uri| !current_uris.iter().any(|&c_uri| n_uri == c_uri))
+                    .collect::<Vec<_>>();
+
+                println!("Removing tracks from playlist...");
+                let delete_chunks = uris_to_delete.chunks(100);
+                for chunk in delete_chunks {
+                    self.client
+                        .delete(&current.tracks.href)
+                        .json(&json!({
+                            "tracks": chunk.iter().map(|c| {
+                                    json!({
+                                        "uri": &c
+                                    })
+                                }).collect::<Vec<_>>(),
+                            "snapshot_id": &current.snapshot_id
+                        }))
+                        .send()?
+                        .error_for_status()?;
+                }
+                println!("Tracks removed successfully.");
+
+                println!("Adding tracks to the playlist...");
+                let add_chunks = uris_to_add.chunks(100);
+                for chunk in add_chunks {
+                    self.client
+                        .post(&current.tracks.href)
+                        .json(&json!({ "uris": &chunk }))
+                        .send()?
+                        .error_for_status()?;
+                }
+                println!("Tracks added successfully.");
+                println!("Playlist updated.");
+                self.open_playlist(&current.uri)?;
             } else {
                 println!("Didn't update the playlist.");
             }
@@ -182,16 +245,7 @@ impl CmdHandler {
                         .error_for_status()?;
                 }
                 println!("Playlist created.");
-                if Confirmation::new()
-                    .with_text(&style("Do you want to view it now?").cyan().to_string())
-                    .default(false)
-                    .interact()?
-                {
-                    match open::that(&playlist.uri) {
-                        Ok(_) => println!("Playlist opened in Spotify."),
-                        Err(_) => println!("See the playlist at: {}", playlist.uri),
-                    }
-                }
+                self.open_playlist(&playlist.uri)?;
             } else {
                 println!("Didn't create the playlist.");
             }
