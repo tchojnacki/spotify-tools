@@ -45,30 +45,22 @@ impl CmdHandler {
             .sorted_by(|(_, v1), (_, v2)| v2.counter.cmp(&v1.counter))
             .collect::<Vec<_>>();
 
-        let top_albums = album_counter
-            .into_iter()
-            .sorted_by(|(_, v1), (_, v2)| v2.counter.cmp(&v1.counter))
-            .collect::<Vec<_>>();
+        let albums = album_counter.into_iter().collect::<Vec<_>>();
 
         println!(
             "{}",
             style(format!(
                 "Your library contains {} songs from {} albums by {} artists.",
                 saved_tracks.len(),
-                top_albums.len(),
+                albums.len(),
                 top_artists.len()
             ))
             .cyan()
         );
 
         println!("{}", style("Most liked artists:").cyan());
-        for artist in &top_artists[..min(top_artists.len(), 10)] {
+        for artist in &top_artists[..min(top_artists.len(), 50)] {
             println!("{} - {} songs", artist.1.name, artist.1.counter);
-        }
-
-        println!("{}", style("Most liked albums:").cyan());
-        for album in &top_albums[..min(top_albums.len(), 10)] {
-            println!("{} - {} songs", album.1.name, album.1.counter);
         }
 
         Ok(())

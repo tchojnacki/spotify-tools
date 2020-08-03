@@ -1,5 +1,5 @@
 use super::spotify_api::{
-    endpoints::{GET_USER, PLAYLIST_CREATION},
+    endpoints::{ALL_PLAYLISTS, GET_USER, PLAYLIST_CREATION},
     models::{Paging, SimplifiedPlaylist, User},
 };
 use super::CmdHandler;
@@ -34,7 +34,7 @@ impl Command {
 impl ToString for Command {
     fn to_string(&self) -> String {
         String::from(match &self {
-            Command::TracksInfo => "Show information about liked songs from your library",
+            Command::TracksInfo => "Show information about top artists from your library",
             Command::Duplicates => "Remove duplicates from liked songs or from a playlist",
             Command::Decades => "Categorize your liked songs based on their release decade",
             Command::Genres => "Categorize your liked songs based on their artist's genre",
@@ -126,56 +126,76 @@ impl CmdHandler {
 
         let name = &name[..min(name.len(), 100)];
 
-        println!(
-            "You are going to create a \"{}\" playlist containing {} songs.",
-            name,
-            tracks.len()
-        );
+        let user_id = self
+            .client
+            .get(GET_USER)
+            .send()?
+            .error_for_status()?
+            .json::<User>()?
+            .id;
+        let playlists = self
+            .paged_request::<SimplifiedPlaylist>(ALL_PLAYLISTS)?
+            .into_iter()
+            .filter(|playlist| playlist.owner.id == user_id && playlist.name == name)
+            .collect::<Vec<_>>();
 
-        if Confirmation::new()
-            .with_text(&style("Do you want to proceed?").cyan().to_string())
-            .interact()?
-        {
-            println!("Creating the playlist...");
-            let user_id = self
-                .client
-                .get(GET_USER)
-                .send()?
-                .error_for_status()?
-                .json::<User>()?
-                .id;
-            let playlist = self
-                .client
-                .post(&PLAYLIST_CREATION.replace("{user_id}", &user_id))
-                .json(&json!({ "name": &name }))
-                .send()?
-                .error_for_status()?
-                .json::<SimplifiedPlaylist>()?;
-
-            println!("Adding songs to the playlist...");
-            let chunks = tracks.chunks(100);
-            for chunk in chunks {
-                self.client
-                    .post(&playlist.tracks.href)
-                    .json(&json!({ "uris": &chunk }))
-                    .send()?
-                    .error_for_status()?;
-            }
-            println!("Playlist created.");
-
+        if playlists.len() == 1 {
+            let current = &playlists[0];
+            println!(
+                "You are going to update an existing \"{}\" playlist containing {} songs to have {} songs.",
+                current.name, current.tracks.total, tracks.len()
+            );
             if Confirmation::new()
-                .with_text(&style("Do you want to view it now?").cyan().to_string())
-                .default(false)
+                .with_text(&style("Do you want to proceed?").cyan().to_string())
                 .interact()?
             {
-                match open::that(&playlist.uri) {
-                    Ok(_) => println!("Playlist opened in Spotify."),
-                    Err(_) => println!("See the playlist at: {}", playlist.uri),
-                }
+                println!("Updating the playlist...");
+            } else {
+                println!("Didn't update the playlist.");
             }
+            Ok(())
         } else {
-            println!("Didn't create the playlist.");
+            println!(
+                "You are going to create a \"{}\" playlist containing {} songs.",
+                name,
+                tracks.len()
+            );
+            if Confirmation::new()
+                .with_text(&style("Do you want to proceed?").cyan().to_string())
+                .interact()?
+            {
+                println!("Creating the playlist...");
+                let playlist = self
+                    .client
+                    .post(&PLAYLIST_CREATION.replace("{user_id}", &user_id))
+                    .json(&json!({ "name": &name }))
+                    .send()?
+                    .error_for_status()?
+                    .json::<SimplifiedPlaylist>()?;
+                println!("Adding songs to the playlist...");
+                let chunks = tracks.chunks(100);
+                for chunk in chunks {
+                    self.client
+                        .post(&playlist.tracks.href)
+                        .json(&json!({ "uris": &chunk }))
+                        .send()?
+                        .error_for_status()?;
+                }
+                println!("Playlist created.");
+                if Confirmation::new()
+                    .with_text(&style("Do you want to view it now?").cyan().to_string())
+                    .default(false)
+                    .interact()?
+                {
+                    match open::that(&playlist.uri) {
+                        Ok(_) => println!("Playlist opened in Spotify."),
+                        Err(_) => println!("See the playlist at: {}", playlist.uri),
+                    }
+                }
+            } else {
+                println!("Didn't create the playlist.");
+            }
+            Ok(())
         }
-        Ok(())
     }
 }

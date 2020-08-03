@@ -1,6 +1,6 @@
 use super::spotify_api::{
-    endpoints::{ALL_PLAYLISTS, SAVED_TRACKS, SAVED_TRACKS_REMOVAL},
-    models::{PlaylistTrack, SavedTrack, SimplifiedPlaylist, Track},
+    endpoints::{ALL_PLAYLISTS, GET_USER, SAVED_TRACKS, SAVED_TRACKS_REMOVAL},
+    models::{PlaylistTrack, SavedTrack, SimplifiedPlaylist, Track, User},
 };
 use super::CmdHandler;
 use console::style;
@@ -52,7 +52,16 @@ fn find_duplicates<'a>(tracks: &'a [Track]) -> Vec<Duplicate<'a>> {
     let mut duplicates = Vec::new();
     for indexed_track in tracks.iter().enumerate() {
         dup_map
-            .entry(&indexed_track.1.artists[0].name) // Entry with key based on track artist
+            .entry(
+                indexed_track
+                    .1
+                    .artists
+                    .iter()
+                    .map(|artist| artist.name.to_owned())
+                    .collect::<Vec<_>>()
+                    .join("")
+                    .to_owned(),
+            ) // Entry with key based on track artist
             .and_modify(|album_entry: &mut HashMap<&String, (usize, &Track)>| {
                 album_entry
                     .entry(&indexed_track.1.name) // Entry with key based on track name
@@ -103,9 +112,22 @@ impl CmdHandler {
         let playlists = self.paged_request::<SimplifiedPlaylist>(ALL_PLAYLISTS)?;
         println!("Playlists loaded.");
 
+        let user_id = self
+            .client
+            .get(GET_USER)
+            .send()?
+            .error_for_status()?
+            .json::<User>()?
+            .id;
+
         let choices = {
             let mut choices = vec![Target::SavedTracks];
-            choices.extend(playlists.into_iter().map(Target::Playlist));
+            choices.extend(
+                playlists
+                    .into_iter()
+                    .filter(|playlist| playlist.owner.id == user_id)
+                    .map(Target::Playlist),
+            );
             choices
         };
 

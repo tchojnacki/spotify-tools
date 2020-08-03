@@ -49,6 +49,7 @@ pub mod models {
     #[derive(Deserialize, Debug)]
     pub struct SimplifiedPlaylist {
         pub name: String,
+        pub owner: User,
         pub tracks: Tracks,
         pub snapshot_id: String,
         pub id: String,
