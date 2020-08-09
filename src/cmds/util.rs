@@ -183,7 +183,10 @@ impl CmdHandler {
                     .filter(|&&n_uri| !current_uris.iter().any(|&c_uri| n_uri == c_uri))
                     .collect::<Vec<_>>();
 
-                println!("Removing tracks from playlist...");
+                println!(
+                    "Removing tracks ({}) from playlist...",
+                    uris_to_delete.len()
+                );
                 let delete_chunks = uris_to_delete.chunks(100);
                 for chunk in delete_chunks {
                     self.client
@@ -201,7 +204,7 @@ impl CmdHandler {
                 }
                 println!("Tracks removed successfully.");
 
-                println!("Adding tracks to the playlist...");
+                println!("Adding tracks ({}) to the playlist...", uris_to_add.len());
                 let add_chunks = uris_to_add.chunks(100);
                 for chunk in add_chunks {
                     self.client

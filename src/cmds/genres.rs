@@ -7,6 +7,7 @@ use console::style;
 use dialoguer::Checkboxes;
 use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
+use std::cmp::min;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::error::Error;
@@ -31,7 +32,7 @@ impl CmdHandler {
 
         let artists = artist_map.keys().collect::<Vec<_>>();
         let chunks = artists.chunks(50);
-        let mut genre_map = HashMap::new();
+        let mut genre_map: HashMap<String, Vec<(String, String)>> = HashMap::new();
 
         let progress = ProgressBar::new(artists.len().try_into().unwrap()).with_style(
             ProgressStyle::default_bar()
@@ -50,10 +51,12 @@ impl CmdHandler {
                 for genre in &artist.genres {
                     genre_map
                         .entry(String::from(genre))
-                        .and_modify(|tracks: &mut Vec<String>| {
-                            tracks.push(String::from(&artist.id));
+                        .and_modify(|artists: &mut Vec<(String, String)>| {
+                            artists.push((String::from(&artist.id), String::from(&artist.name)));
                         })
-                        .or_insert_with(|| vec![String::from(&artist.id)]);
+                        .or_insert_with(|| {
+                            vec![(String::from(&artist.id), String::from(&artist.name))]
+                        });
                 }
             }
         }
@@ -65,14 +68,24 @@ impl CmdHandler {
             .map(|(genre, artists)| {
                 (
                     genre,
-                    artists
-                        .into_iter()
-                        .map(|artist| artist_map.get(&artist).unwrap())
-                        .flatten()
-                        .collect::<Vec<_>>(),
+                    (
+                        artists
+                            .iter()
+                            .map(|artist| artist_map.get(&artist.0).unwrap())
+                            .flatten()
+                            .collect::<Vec<_>>(),
+                        artists
+                            .into_iter()
+                            .map(|artist| artist.1)
+                            .collect::<Vec<_>>(),
+                    ),
                 )
             })
-            .sorted_by(|(_, v1), (_, v2)| v2.len().cmp(&v1.len()))
+            .sorted_by(
+                |(_id1, (tracks1, _artists1)), (_id2, (tracks2, _artists2))| {
+                    tracks2.len().cmp(&tracks1.len())
+                },
+            )
             .collect::<Vec<_>>();
         let checkboxes = {
             let mut checkboxes = Checkboxes::new();
@@ -84,7 +97,14 @@ impl CmdHandler {
             checkboxes.items(
                 &genres
                     .iter()
-                    .map(|(k, v)| format!("{} - {} songs", &k, v.len()))
+                    .map(|(genre, (tracks, artists))| {
+                        format!(
+                            "{} - {} songs ({})",
+                            &genre,
+                            tracks.len(),
+                            &artists[..min(artists.len(), 5)].join(", ")
+                        )
+                    })
                     .collect::<Vec<String>>()
                     .iter()
                     .map(|s| s.as_ref())
@@ -104,7 +124,7 @@ impl CmdHandler {
                 .join("/");
             let tracks = selection
                 .into_iter()
-                .map(|i| &genres.get(i).unwrap().1)
+                .map(|i| &(genres.get(i).unwrap().1).0)
                 .flatten()
                 .map(|track| &track.uri)
                 .unique()

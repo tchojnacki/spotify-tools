@@ -80,6 +80,7 @@ pub mod models {
     #[derive(Deserialize, Debug)]
     pub struct FullArtist {
         pub id: String,
+        pub name: String,
         pub genres: Vec<String>,
     }
 }
