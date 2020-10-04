@@ -58,6 +58,11 @@ impl CmdHandler {
                             vec![(String::from(&artist.id), String::from(&artist.name))]
                         });
                 }
+
+                genre_map.insert(
+                    String::from(&artist.name),
+                    vec![(String::from(&artist.id), String::from(&artist.name))],
+                );
             }
         }
         progress.finish_and_clear();
